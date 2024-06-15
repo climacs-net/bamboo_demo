@@ -1,0 +1,64 @@
+---
+- name: Install and configure PostgreSQL
+  hosts: all
+  become: yes
+
+  vars:
+    db_name: bamboo
+    db_user: bamboo_user
+    db_password: your_password14344
+
+  tasks:
+    - name: Install PostgreSQL
+      apt:
+        name: postgresql
+        state: present
+
+    - name: Install PostgreSQL client
+      apt:
+        name: postgresql-client
+        state: present
+
+    - name: Install PostgreSQL development files
+      apt:
+        name: libpq-dev
+        state: present
+
+    - name: Ensure PostgreSQL is started and enabled
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+
+    - name: Create database
+      postgresql_db:
+        name: "{{ db_name }}"
+        state: present
+
+    - name: Create database user
+      postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        priv: "{{ db_name }}:ALL"
+        state: present
+
+    - name: Ensure PostgreSQL is listening on all addresses
+      lineinfile:
+        path: /etc/postgresql/12/main/postgresql.conf
+        regexp: '^#?listen_addresses ='
+        line: "listen_addresses = '*'"
+        state: present
+        notify: Restart PostgreSQL
+
+    - name: Allow access from all IPs
+      lineinfile:
+        path: /etc/postgresql/12/main/pg_hba.conf
+        line: 'host    all             all             0.0.0.0/0               md5'
+        state: present
+        notify: Restart PostgreSQL
+
+  handlers:
+    - name: Restart PostgreSQL
+      service:
+        name: postgresql
+        state: restarted
